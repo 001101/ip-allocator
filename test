@@ -1,5 +1,19 @@
 #!/bin/sh
 set -e
 
+echo Building container...
 docker build -t ip-allocator .
-docker run --net host ip-allocator 2001:db8::/71
+
+echo Running container...
+rm -rf target
+mkdir -p target/units target/opts
+docker run \
+  --rm \
+  --net host \
+  --volume `pwd`/target:/target \
+  ip-allocator 2001:db8::/71
+
+echo '----Network unit----'
+cat target/units/dummy0.network
+echo '----Opts file----'
+cat target/opts/ip-allocator-docker-opts.env
