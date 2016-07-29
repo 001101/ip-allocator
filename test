@@ -1,0 +1,5 @@
+#!/bin/sh
+set -e
+
+docker build -t ip-allocator .
+docker run --net host ip-allocator 2001:db8::/71
