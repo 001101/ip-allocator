@@ -53,12 +53,23 @@ def write_docker_opts_file(pod_network):
         fobj.write(opts_file)
 
 
+def write_kubelet_opts_file(host_network):
+    opts_file = textwrap.dedent('''
+        HOSTNAME_OVERRIDE=%(address)s
+    ''' % {
+        'address': host_network.network,
+    })
+    with open('/target/opts/ip-allocator-kubelet-opts.env', 'w') as fobj:
+        fobj.write(opts_file)
+
+
 def main(argv):
     _, base_address = argv
 
     host_network, pod_network = compute_networks(base_address)
     write_unit_file(host_network)
     write_docker_opts_file(pod_network)
+    write_kubelet_opts_file(host_network)
 
 
 if __name__ == '__main__':

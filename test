@@ -15,5 +15,7 @@ docker run \
 
 echo '----Network unit----'
 cat target/units/dummy0.network
-echo '----Opts file----'
+echo '----Docker Opts file----'
 cat target/opts/ip-allocator-docker-opts.env
+echo '----Kubelet Opts file----'
+cat target/opts/ip-allocator-kubelet-opts.env
