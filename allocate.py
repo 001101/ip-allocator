@@ -70,7 +70,7 @@ def write_docker_opts_file(pod_network):
 
 def write_kubelet_opts_file(host_network):
     opts_file = textwrap.dedent('''
-        HOSTNAME_OVERRIDE=%(address)s
+        IPALLOC_HOST_IP=%(address)s
     ''' % {
         'address': host_network.network,
     })
