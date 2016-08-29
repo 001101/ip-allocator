@@ -28,18 +28,33 @@ def compute_networks(base_address):
     return host_network, pod_network
 
 
-def write_unit_file(host_network):
+def write_dummy_netdev_unit_file():
     dummy0_unit = textwrap.dedent('''
-        [Match]
+        [NetDev]
         Name=dummy0
+        Kind=dummy
+    ''')
+    with open('/target/units/dummy0.netdev', 'w') as fobj:
+        fobj.write(dummy0_unit)
+
+
+def write_network_unit_file(interface_name, address, dhcp='both'):
+    unit = textwrap.dedent('''
+        [Match]
+        Name=%(interface_name)s
 
         [Address]
         Address=%(address)s
+
+        [Network]
+        DHCP=%(dhcp)s
     ''' % {
-        'address': host_network
+        'address': address,
+        'dhcp': dhcp,
+        'interface_name': interface_name,
     })
-    with open('/target/units/dummy0.network', 'w') as fobj:
-        fobj.write(dummy0_unit)
+    with open("/target/units/%s.network" % interface_name, 'w') as fobj:
+        fobj.write(unit)
 
 
 def write_docker_opts_file(pod_network):
@@ -47,7 +62,7 @@ def write_docker_opts_file(pod_network):
         DOCKER_OPT_BIP=--ipv6 --fixed-cidr-v6=%(address)s
         DOCKER_OPT_IPMASQ=--ip-masq=false
     ''' % {
-        'address': pod_network
+        'address': pod_network,
     })
     with open('/target/opts/ip-allocator-docker-opts.env', 'w') as fobj:
         fobj.write(opts_file)
@@ -67,7 +82,8 @@ def main(argv):
     _, base_address = argv
 
     host_network, pod_network = compute_networks(base_address)
-    write_unit_file(host_network)
+    write_dummy_netdev_unit_file()
+    write_network_unit_file('dummy0', host_network)
     write_docker_opts_file(pod_network)
     write_kubelet_opts_file(host_network)
 
