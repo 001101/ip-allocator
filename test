@@ -4,6 +4,10 @@ set -e
 echo Building container...
 docker build -t ip-allocator .
 
+echo Setting local config...
+etcdctl set /kubermesh.github.io/ip-allocator/config/ipv4-base-network 172.16.0.1/24
+etcdctl set /kubermesh.github.io/ip-allocator/config/ipv6-base-network 2001:db8::/71
+
 echo Running container...
 rm -rf target
 mkdir -p target/units target/opts
@@ -11,7 +15,7 @@ docker run \
   --rm \
   --net host \
   --volume `pwd`/target:/target \
-  ip-allocator 2001:db8::/71
+  ip-allocator test1
 
 echo '----Network unit----'
 cat target/units/dummy0.network
