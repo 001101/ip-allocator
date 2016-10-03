@@ -99,11 +99,11 @@ def write_docker_opts_file(pod_network):
         fobj.write(opts_file)
 
 
-def write_kubelet_opts_file(host_network):
+def write_kubelet_opts_file(address):
     opts_file = textwrap.dedent('''
         IPALLOC_HOST_IP=%(address)s
     ''' % {
-        'address': host_network.network,
+        'address': address,
     })
     with open('/target/opts/ip-allocator-kubelet-opts.env', 'w') as fobj:
         fobj.write(opts_file)
@@ -122,7 +122,7 @@ def main(argv):
     write_dummy_netdev_unit_file()
     write_network_unit_file('dummy0', ipv4_address, host_network)
     write_docker_opts_file(pod_network)
-    write_kubelet_opts_file(host_network)
+    write_kubelet_opts_file(ipv4_address)
 
 
 if __name__ == '__main__':
