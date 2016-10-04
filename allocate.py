@@ -27,7 +27,7 @@ def allocate_address_etcd(machine_identity):
             if child.value == machine_identity:
                 return child.key.replace('/kubermesh.github.io/ip-allocator/ipv4/', '')
 
-    for address in network:
+    for address in network.subnet(32):
         try:
             client.write("/kubermesh.github.io/ip-allocator/ipv4/%s" % address, machine_identity, prevExist=False)
             return netaddr.IPAddress(address)
