@@ -8,7 +8,7 @@ import textwrap
 
 
 def get_etcd_client():
-    return etcd.Client(host='fd65:7b9c:569:680:98eb:c508:ea6b:b0b2')
+    return etcd.Client(host='[fd65:7b9c:569:680:98eb:c508:ea6b:b0b2]')
 
 
 def get_config(key):
