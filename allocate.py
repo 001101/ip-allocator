@@ -27,7 +27,7 @@ def allocate_address_etcd(machine_identity):
             if child.value == machine_identity:
                 return child.key.replace('/kubermesh.github.io/ip-allocator/ipv4/', '')
 
-    for address in network.subnet(32):
+    for address in network:
         try:
             client.write("/kubermesh.github.io/ip-allocator/ipv4/%s" % address, machine_identity, prevExist=False)
             return netaddr.IPAddress(address)
@@ -73,7 +73,7 @@ def write_network_unit_file(interface_name, ipv4_address, ipv6_address, dhcp='bo
         Name=%(interface_name)s
 
         [Address]
-        Address=%(ipv4_address)s
+        Address=%(ipv4_address)s/32
         Address=%(ipv6_address)s
 
         [Network]
