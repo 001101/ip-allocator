@@ -74,6 +74,8 @@ def write_network_unit_file(interface_name, ipv4_address, ipv6_address, dhcp='bo
 
         [Address]
         Address=%(ipv4_address)s/32
+
+        [Address]
         Address=%(ipv6_address)s
 
         [Network]
@@ -120,7 +122,7 @@ def main(argv):
     assert ipv4_address
 
     write_dummy_netdev_unit_file()
-    write_network_unit_file('dummy0', ipv4_address, host_network)
+    write_network_unit_file('dummy0', ipv4_address, host_network, dhcp='no')
     write_docker_opts_file(pod_network)
     write_kubelet_opts_file(ipv4_address)
 
