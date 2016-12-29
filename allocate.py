@@ -42,7 +42,7 @@ def mac_addresses():
             if not netaddr.EUI(mac).value:
                 # Ignore
                 continue
-            if netaddr.EUI(mac).value & (1 << (8*5 + 1)):
+            if not netaddr.EUI(mac).value & (1 << (8*5 + 1)):
                 # This is a universal mac, allow it
                 # https://en.wikipedia.org/wiki/MAC_address#Universal_vs._local
                 yield mac
