@@ -59,8 +59,9 @@ def compute_networks(base_address):
     node_network._value |= (lowest_mac.value << (128 - node_network.prefixlen))
 
     host_network, pod_network = node_network.subnet(node_network.prefixlen + 1)
-    host_network.prefixlen=128
-    return host_network, pod_network
+    vip_network, cluster_interface_network = list(host_network.subnet(123))[:2]
+    vip_network.prefixlen = 128
+    return vip_network, list(cluster_interface_network.subnet(126)), pod_network
 
 
 def write_dummy_netdev_unit_file():
@@ -73,25 +74,42 @@ def write_dummy_netdev_unit_file():
         fobj.write(dummy0_unit)
 
 
-def write_network_unit_file(interface_name, ipv4_address, ipv6_address, dhcp='both'):
-    unit = textwrap.dedent('''
-        [Match]
-        Name=%(interface_name)s
+def write_network_unit_file(interface_name, ipv4_address=None, ipv6_address=None, dhcp='both'):
+    if ipv4_address:
+        unit = textwrap.dedent('''
+            [Match]
+            Name=%(interface_name)s
 
-        [Address]
-        Address=%(ipv4_address)s/32
+            [Address]
+            Address=%(ipv4_address)s/32
 
-        [Address]
-        Address=%(ipv6_address)s
+            [Address]
+            Address=%(ipv6_address)s
 
-        [Network]
-        DHCP=%(dhcp)s
-    ''' % {
-        'dhcp': dhcp,
-        'interface_name': interface_name,
-        'ipv4_address': ipv4_address,
-        'ipv6_address': ipv6_address,
-    })
+            [Network]
+            DHCP=%(dhcp)s
+        ''' % {
+            'dhcp': dhcp,
+            'interface_name': interface_name,
+            'ipv4_address': ipv4_address,
+            'ipv6_address': ipv6_address,
+        })
+    else:
+        unit = textwrap.dedent('''
+            [Match]
+            Name=%(interface_name)s
+
+            [Address]
+            Address=%(ipv6_address)s
+
+            [Network]
+            DHCP=%(dhcp)s
+        ''' % {
+            'dhcp': dhcp,
+            'interface_name': interface_name,
+            'ipv4_address': ipv4_address,
+            'ipv6_address': ipv6_address,
+        })
     with open("/target/units/%s.network" % interface_name, 'w') as fobj:
         fobj.write(unit)
 
@@ -120,15 +138,17 @@ def write_kubelet_opts_file(address):
 def main(argv):
     _, machine_identity = argv
 
-    host_network, pod_network = compute_networks(get_config('ipv6-base-network'))
+    host_interface, cluster_networks, pod_network = compute_networks(get_config('ipv6-base-network'))
     ipv4_address = allocate_address_etcd(machine_identity)
 
-    assert host_network
+    assert host_interface
     assert pod_network
     assert ipv4_address
 
     write_dummy_netdev_unit_file()
-    write_network_unit_file('dummy0', ipv4_address, host_network, dhcp='no')
+    write_network_unit_file('dummy0', ipv4_address, host_interface, dhcp='no')
+    for index, cluster_network in enumerate(cluster_networks):
+        write_network_unit_file("cluster%d" % index, ipv4_address=None, ipv6_address=cluster_network, dhcp='yes')
     write_docker_opts_file(pod_network)
     write_kubelet_opts_file(ipv4_address)
 
