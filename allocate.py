@@ -74,7 +74,7 @@ def write_dummy_netdev_unit_file():
         fobj.write(dummy0_unit)
 
 
-def write_network_unit_file(interface_name, ipv4_address=None, ipv6_address=None, dhcp='both'):
+def write_network_unit_file(interface_name, ipv4_address=None, ipv6_address=None, dhcp='both', preferred_lifetime='forever'):
     if ipv4_address:
         unit = textwrap.dedent('''
             [Match]
@@ -85,6 +85,7 @@ def write_network_unit_file(interface_name, ipv4_address=None, ipv6_address=None
 
             [Address]
             Address=%(ipv6_address)s
+            PreferredLifetime=%(preferred_lifetime)s
 
             [Network]
             DHCP=%(dhcp)s
@@ -93,6 +94,7 @@ def write_network_unit_file(interface_name, ipv4_address=None, ipv6_address=None
             'interface_name': interface_name,
             'ipv4_address': ipv4_address,
             'ipv6_address': ipv6_address,
+            'preferred_lifetime': preferred_lifetime,
         })
     else:
         unit = textwrap.dedent('''
@@ -101,6 +103,7 @@ def write_network_unit_file(interface_name, ipv4_address=None, ipv6_address=None
 
             [Address]
             Address=%(ipv6_address)s
+            PreferredLifetime=%(preferred_lifetime)s
 
             [Network]
             DHCP=%(dhcp)s
@@ -109,6 +112,7 @@ def write_network_unit_file(interface_name, ipv4_address=None, ipv6_address=None
             'interface_name': interface_name,
             'ipv4_address': ipv4_address,
             'ipv6_address': ipv6_address,
+            'preferred_lifetime': preferred_lifetime,
         })
     with open("/target/units/%s.network" % interface_name, 'w') as fobj:
         fobj.write(unit)
@@ -164,7 +168,7 @@ def main(argv):
     write_dummy_netdev_unit_file()
     write_network_unit_file('dummy0', ipv4_address, host_interface, dhcp='no')
     for index, cluster_network in enumerate(cluster_networks):
-        write_network_unit_file("cluster%d" % index, ipv4_address=None, ipv6_address=cluster_network, dhcp='yes')
+        write_network_unit_file("cluster%d" % index, ipv4_address=None, ipv6_address=cluster_network, dhcp='yes', preferred_lifetime=0)
         write_dnsmasq_opts_file("cluster%d" % index, cluster_network)
     write_docker_opts_file(pod_network)
     write_kubelet_opts_file(ipv4_address)
