@@ -120,20 +120,23 @@ def write_network_unit_file(interface_name, ipv4_address=None, ipv6_address=None
         fobj.write(unit)
 
 
-def write_dnsmasq_opts_file(interface_name, interface_network):
-    opts_file = textwrap.dedent('''
-        INTERFACE_IP=%(interface_ip)s
-        RANGE_START=%(range_start)s
-        RANGE_END=%(range_end)s
-        RANGE_NETMASK=%(range_netmask)s
-    ''' % {
-        'interface_ip': interface_network[0],
-        'range_start': interface_network[1],
-        'range_end': interface_network[-1],
-        'range_netmask': interface_network.prefixlen,
-    })
-    with open("/target/opts/%s-dnsmasq-opts.env" % interface_name, 'w') as fobj:
-        fobj.write(opts_file)
+def write_dnsmasq_opts_file(vip_ip, interface_networks):
+    with open('/target/opts/dnsmasq-opts.env', 'w') as fobj:
+        fobj.write("VIP_IP=%s\n" % vip_ip)
+        for index, interface_network in enumerate(interface_networks):
+            opts_file = textwrap.dedent('''
+                CLUSTER%(index)d_INTERFACE_IP=%(interface_ip)s
+                CLUSTER%(index)d_RANGE_START=%(range_start)s
+                CLUSTER%(index)d_RANGE_END=%(range_end)s
+                CLUSTER%(index)d_RANGE_NETMASK=%(range_netmask)s
+            ''' % {
+                'index': index,
+                'interface_ip': interface_network[0],
+                'range_start': interface_network[1],
+                'range_end': interface_network[-1],
+                'range_netmask': interface_network.prefixlen,
+            })
+            fobj.write(opts_file)
 
 
 def write_docker_opts_file(pod_network):
@@ -171,7 +174,7 @@ def main(argv):
     write_network_unit_file('dummy0', ipv4_address, host_interface, dhcp='no')
     for index, cluster_network in enumerate(cluster_networks):
         write_network_unit_file("cluster%d" % index, ipv4_address=None, ipv6_address=cluster_network, dhcp='yes', preferred_lifetime=0)
-        write_dnsmasq_opts_file("cluster%d" % index, cluster_network)
+    write_dnsmasq_opts_file(host_interface, cluster_networks)
     write_docker_opts_file(pod_network)
     write_kubelet_opts_file(ipv4_address)
 
