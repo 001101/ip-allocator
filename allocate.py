@@ -39,13 +39,18 @@ def mac_addresses():
     for interface_name in netifaces.interfaces():
         for mac_object in netifaces.ifaddresses(interface_name)[netifaces.AF_LINK]:
             mac = mac_object['addr']
-            if not netaddr.EUI(mac).value:
-                # Ignore
+            try:
+                eui=netaddr.EUI(mac)
+            except netaddr.core.AddrFormatError:
                 continue
-            if not netaddr.EUI(mac).value & (1 << (8*5 + 1)):
-                # This is a universal mac, allow it
-                # https://en.wikipedia.org/wiki/MAC_address#Universal_vs._local
-                yield mac
+            else:
+                if not eui.value:
+                    # Ignore
+                    continue
+                if not eui.value & (1 << (8*5 + 1)):
+                    # This is a universal mac, allow it
+                    # https://en.wikipedia.org/wiki/MAC_address#Universal_vs._local
+                    yield mac
 
 
 def compute_networks(base_address):
