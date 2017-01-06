@@ -179,7 +179,7 @@ def main(argv):
     write_network_unit_file('dummy0', ipv4_address, host_interface, dhcp='no')
     for index, cluster_network in enumerate(cluster_networks):
         write_network_unit_file("cluster%d" % index, ipv4_address=None, ipv6_address=cluster_network, dhcp='yes', preferred_lifetime=0)
-    write_dnsmasq_opts_file(host_interface, cluster_networks)
+    write_dnsmasq_opts_file(host_interface[0], cluster_networks)
     write_docker_opts_file(pod_network)
     write_kubelet_opts_file(ipv4_address)
 
