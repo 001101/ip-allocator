@@ -65,7 +65,6 @@ def compute_networks(base_address):
 
     host_network, pod_network = node_network.subnet(node_network.prefixlen + 1)
     vip_network, cluster_interface_network = list(host_network.subnet(123))[:2]
-    vip_network.prefixlen = 128
     return vip_network, list(cluster_interface_network.subnet(126)), pod_network
 
 
@@ -89,7 +88,7 @@ def write_network_unit_file(interface_name, ipv4_address=None, ipv6_address=None
             Address=%(ipv4_address)s/32
 
             [Address]
-            Address=%(ipv6_address)s
+            Address=%(ipv6_address)s/128
             PreferredLifetime=%(preferred_lifetime)s
 
             [Network]
@@ -145,6 +144,11 @@ def write_dnsmasq_opts_file(vip_ip, interface_networks):
             fobj.write(opts_file)
 
 
+def write_v4_overlay_opts_file(vip_ip):
+    with open('/target/opts/v4-overlay-opts.env', 'w') as fobj:
+        fobj.write("VIP_IP=%s\n" % vip_ip)
+
+
 def write_docker_opts_file(pod_network):
     opts_file = textwrap.dedent('''
         DOCKER_OPT_BIP=--ipv6 --fixed-cidr-v6=%(address)s
@@ -169,8 +173,11 @@ def write_kubelet_opts_file(address):
 def main(argv):
     _, machine_identity = argv
 
-    host_interface, cluster_networks, pod_network = compute_networks(get_config('ipv6-base-network'))
+    vip_network, cluster_networks, pod_network = compute_networks(get_config('ipv6-base-network'))
     ipv4_address = allocate_address_etcd(machine_identity)
+
+    host_interface = vip_network[0]
+    v4_overlay_interface = vip_network[1]
 
     assert host_interface
     assert pod_network
@@ -180,7 +187,8 @@ def main(argv):
     write_network_unit_file('dummy0', ipv4_address, host_interface, dhcp='no')
     for index, cluster_network in enumerate(cluster_networks):
         write_network_unit_file("cluster%d" % index, ipv4_address=None, ipv6_address=cluster_network, dhcp='yes', preferred_lifetime=0)
-    write_dnsmasq_opts_file(host_interface[0], cluster_networks)
+    write_dnsmasq_opts_file(host_interface, cluster_networks)
+    write_v4_overlay_opts_file(v4_overlay_interface)
     write_docker_opts_file(pod_network)
     write_kubelet_opts_file(ipv4_address)
 
