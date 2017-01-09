@@ -114,6 +114,7 @@ def write_network_unit_file(interface_name, ipv4_address=None, ipv6_address=None
             [Network]
             DHCP=%(dhcp)s
             IPForward=ipv6
+            IPv6AcceptRA=true
         ''' % {
             'dhcp': dhcp,
             'interface_name': interface_name,
