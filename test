@@ -4,6 +4,27 @@ set -e
 echo Building container...
 docker build -t ip-allocator .
 
+
+HOSTIP=$(docker run -ti --net=host alpine ip route|awk '/default/ { print  $3}')
+echo Docker host: $HOSTIP
+
+docker rm -f etcd 2>/dev/null
+echo Starting test etcd
+docker run -d \
+ --net host \
+ --name etcd quay.io/coreos/etcd \
+ /usr/local/bin/etcd \
+ -name etcd0 \
+ -advertise-client-urls http://${HOSTIP}:2379,http://${HOSTIP}:4001 \
+ -listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
+ -initial-advertise-peer-urls http://${HOSTIP}:2380 \
+ -listen-peer-urls http://0.0.0.0:2380 \
+ -initial-cluster-token etcd-cluster-1 \
+ -initial-cluster etcd0=http://${HOSTIP}:2380 \
+ -initial-cluster-state new
+
+echo Sleeping...
+sleep 1
 echo Setting local config...
 etcdctl set /kubermesh.github.io/ip-allocator/config/ipv4-base-network 172.16.0.1/24
 etcdctl set /kubermesh.github.io/ip-allocator/config/ipv6-base-network 2001:db8::/71
@@ -14,8 +35,14 @@ mkdir -p target/units target/opts
 docker run \
   --rm \
   --net host \
+  -e ETCD_HOST=${HOSTIP} \
+  -e ETCD_PORT=2379 \
   --volume `pwd`/target:/target \
   ip-allocator test1
+
+echo Killing test etcd
+docker kill -s 9 etcd
+docker rm -f etcd
 
 echo '----Network unit----'
 cat target/units/dummy0.network
@@ -23,3 +50,5 @@ echo '----Docker Opts file----'
 cat target/opts/ip-allocator-docker-opts.env
 echo '----Kubelet Opts file----'
 cat target/opts/ip-allocator-kubelet-opts.env
+echo '----v4 Overlay Opts file'
+cat target/opts/v4-overlay-opts.env

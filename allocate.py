@@ -3,36 +3,38 @@
 import etcd
 import netaddr
 import netifaces
+import os
 import sys
 import textwrap
 
-
-def get_etcd_client():
-    return etcd.Client(host='[fd65:7b9c:569:680:98eb:c508:ea6b:b0b2]')
+ETCD_VIP = '[fd65:7b9c:569:680:98eb:c508:ea6b:b0b2]'
 
 
-def get_config(key):
-    return get_etcd_client().read("/kubermesh.github.io/ip-allocator/config/%s" % key).value
+class Client(object):
 
+    def __init__(self, host=ETCD_VIP, port=4001):
+        self.client = etcd.Client(host=host, port=port)
 
-def allocate_address_etcd(machine_identity):
-    network = netaddr.IPNetwork(get_config('ipv4-base-network'))
-    client = get_etcd_client()
-    try:
-        response = client.read('/kubermesh.github.io/ip-allocator/ipv4/', recursive=True)
-    except etcd.EtcdKeyNotFound:
-        pass
-    else:
-        for child in response.children:
-            if child.value == machine_identity:
-                return child.key.replace('/kubermesh.github.io/ip-allocator/ipv4/', '')
+    def get_config(self, key):
+        return self.client.read("/kubermesh.github.io/ip-allocator/config/%s" % key).value
 
-    for address in network:
+    def allocate_address(self, machine_identity):
+        network = netaddr.IPNetwork(self.get_config('ipv4-base-network'))
         try:
-            client.write("/kubermesh.github.io/ip-allocator/ipv4/%s" % address, machine_identity, prevExist=False)
-            return netaddr.IPAddress(address)
-        except etcd.EtcdAlreadyExist:
+            response = self.client.read('/kubermesh.github.io/ip-allocator/ipv4/', recursive=True)
+        except etcd.EtcdKeyNotFound:
             pass
+        else:
+            for child in response.children:
+                if child.value == machine_identity:
+                    return child.key.replace('/kubermesh.github.io/ip-allocator/ipv4/', '')
+
+        for address in network:
+            try:
+                self.client.write("/kubermesh.github.io/ip-allocator/ipv4/%s" % address, machine_identity, prevExist=False)
+                return netaddr.IPAddress(address)
+            except etcd.EtcdAlreadyExist:
+                pass
 
 
 def mac_addresses():
@@ -173,8 +175,10 @@ def write_kubelet_opts_file(address):
 def main(argv):
     _, machine_identity = argv
 
-    vip_network, cluster_networks, pod_network = compute_networks(get_config('ipv6-base-network'))
-    ipv4_address = allocate_address_etcd(machine_identity)
+    client = Client(host=os.getenv('ETCD_HOST', ETCD_VIP),
+                    port=int(os.getenv('ETCD_PORT', 4001)))
+    vip_network, cluster_networks, pod_network = compute_networks(client.get_config('ipv6-base-network'))
+    ipv4_address = client.allocate_address(machine_identity)
 
     host_interface = vip_network[0]
     v4_overlay_interface = vip_network[1]
