@@ -38,6 +38,7 @@ class Client(object):
 
 
 def mac_addresses():
+    # Lower priority is better (so we can just sort this list)
     for interface_name in netifaces.interfaces():
         for mac_object in netifaces.ifaddresses(interface_name)[netifaces.AF_LINK]:
             mac = mac_object['addr']
@@ -49,17 +50,22 @@ def mac_addresses():
                 if not eui.value:
                     # Ignore
                     continue
-                if not eui.value & (1 << (8*5 + 1)):
-                    # This is a universal mac, allow it
-                    # https://en.wikipedia.org/wiki/MAC_address#Universal_vs._local
-                    yield mac
+                local_mac = bool(eui.words[0] & 0b10) # See https://stackoverflow.com/a/38877492/14044
+                # Also https://en.wikipedia.org/wiki/MAC_address#Universal_vs._local
+                yield (
+                    # Something that's univeral is best
+                    1 if local_mac else 0,
+                    # eth* preferred to other names
+                    0 if interface_name.startswith('eth') else 1,
+                    # Lowest mac is best
+                    eui
+                )
 
 
 def compute_networks(base_address):
     node_network = netaddr.IPNetwork(base_address)
 
-    lowest_mac = sorted(mac_addresses())[0]
-    lowest_mac = netaddr.EUI(lowest_mac)
+    lowest_mac = sorted(mac_addresses())[0][2]
 
     # Combine base address with mac
     node_network.prefixlen += 48
